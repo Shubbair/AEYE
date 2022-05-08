@@ -1,27 +1,16 @@
 import cv2
 import numpy as np
+import playsound as ps
 from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator
 
-#
-# videoUrl = 'https://youtu.be/TGadVbd-C-E'
-# videoPafy = pafy.new(videoUrl)
-#
-# # Initialize depth estimation model
 depthEstimator = midasDepthEstimator()
-
-# Initialize video
-# cap = cv2.VideoCapture("img/test.mp4")
-# print(videoPafy.streams)
 cap = cv2.VideoCapture(0)
 cv2.namedWindow("Depth Image", cv2.WINDOW_NORMAL) 	
 
 while cap.isOpened():
-
-	# Read frame from the video
 	ret, img = cap.read()
 
 	if ret:
-
 		# Estimate depth
 		colorDepth = depthEstimator.estimateDepth(img)
 
@@ -29,23 +18,33 @@ while cap.isOpened():
 
 		height, width = colorDepth.shape[:2]
 
-		w, h = (32, 32)
+		w, h = (8, 8)
 
 		temp = cv2.resize(colorDepth, (w, h), interpolation=cv2.INTER_LINEAR)
 
 		output = cv2.resize(temp, (width, height), interpolation=cv2.INTER_NEAREST)
+		
+		hsv_frame = cv2.cvtColor(output, cv2.COLOR_GRAY2BGR)
+		low = np.array([220, 220, 220])
+		high = np.array([255, 255, 255])
+		object_mask = cv2.inRange(hsv_frame,low, high)
+		object_edge = cv2.bitwise_and(output,output,mask=object_mask)
 
-		# Add the depth image over the color image:
-        #combinedImg = cv2.addWeighted(img,0.7,colorDepth,0.6,0)
+		edges= cv2.Canny(object_edge, 50,200)
 
-		# Join the input image, the estiamted depth and the combined image
-		#img_out = np.hstack((img, colorDepth, combinedImg))
+		contours, hierarchy= cv2.findContours(edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-		cv2.imshow("Depth Image", output)
+		number_of_objects_in_image= len(contours)
+
+		if(number_of_objects_in_image):
+			ps.playsound('Blindwave.wav')
+
+		# cv2.imshow("Depth Image", output)
+		cv2.imshow("Depth Image",object_edge)
 
 	# Press key q to stop
 	if cv2.waitKey(1) == ord('q'):
 		break
-
+		
 cap.release()
 cv2.destroyAllWindows()
